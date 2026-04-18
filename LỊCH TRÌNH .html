@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Sinh Viên IT: Lịch Trình & Lộ Trình</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chosen Palette: Slate-50 background, Blue-600 for actions, Emerald-500 for completed tasks, Purple/Amber for charts -->
+    <!-- Application Structure Plan:
+         1. Header: Context & Motivation.
+         2. Principles: 3 strict rules to prevent burnout.
+         3. Interactive Schedule: Toggle between Weekday and Sunday. Updates Doughnut Chart and Timeline.
+         4. Task Tracker & Roadmap: LocalStorage-powered checklist. REVISED to feature a DAILY breakdown (2-3 tasks/day) across 7 days for each phase, preventing cognitive overload and enforcing a daily habit.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #0f172a; /* slate-900 */
+        }
+        
+        /* Chart Container Styling - MANDATORY constraint */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .tab-active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+            font-weight: 600;
+        }
+        
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            border: 2px solid white;
+            position: absolute;
+            left: -6px;
+            top: 6px;
+        }
+
+        /* Checkbox custom styles */
+        .task-checkbox:checked + .task-text {
+            text-decoration: line-through;
+            color: #94a3b8; /* slate-400 */
+        }
+        .task-checkbox:checked {
+            accent-color: #10b981; /* emerald-500 */
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-blue-200 selection:text-blue-900">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🎓</span>
+                    <span class="font-bold text-xl text-slate-800 tracking-tight">IT Student Sync</span>
+                </div>
+                <div class="hidden sm:flex space-x-8">
+                    <a href="#principles" class="text-slate-600 hover:text-blue-600 transition">Nguyên tắc</a>
+                    <a href="#schedule" class="text-slate-600 hover:text-blue-600 transition">Lịch trình</a>
+                    <a href="#roadmap" class="text-slate-600 hover:text-blue-600 transition">Lộ trình & Bài tập</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12 md:space-y-16">
+
+        <!-- Header -->
+        <section class="text-center space-y-4 max-w-3xl mx-auto mt-4">
+            <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight">Cân Bằng Giữa Code, Việc Làm & Cuộc Sống</h1>
+            <p class="text-lg text-slate-600 leading-relaxed">
+                Quản lý lịch trình và bài tập C++ trực tiếp tại đây. Chống quá tải nhận thức (Cognitive Load) bằng cách tuân thủ nghiêm ngặt giờ giấc và theo dõi tiến độ từng bước nhỏ (2-3 bài/ngày).
+            </p>
+        </section>
+
+        <!-- Principles -->
+        <section id="principles" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>🛑</span> 3 Nguyên Tắc Sinh Tồn
+                </h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <div class="text-3xl mb-4">💤</div>
+                    <h3 class="font-semibold text-lg text-slate-800 mb-2">KHÔNG code ban đêm</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Tuyệt đối không học sau 23:30. Ưu tiên giấc ngủ để bộ não phục hồi, tránh làm giảm Cognitive Load.</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <div class="text-3xl mb-4">🏢</div>
+                    <h3 class="font-semibold text-lg text-slate-800 mb-2">Tận dụng môi trường</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Đến chỗ làm sớm nếu rảnh cuối giờ học, đeo tai nghe tạo "bong bóng cách ly" để tập trung cao độ.</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <div class="text-3xl mb-4">⚡</div>
+                    <h3 class="font-semibold text-lg text-slate-800 mb-2">Hiệu suất > Thời gian</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Mệt thì gục bàn ngủ Power Nap 15-20p. Không ép bản thân gõ code trong trạng thái lờ đờ, buồn ngủ.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Schedule Section -->
+        <section id="schedule" class="scroll-mt-20">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>⏱️</span> Phân bổ Thời gian & Lịch trình
+                </h2>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap justify-center gap-4">
+                    <button id="btn-weekday" class="px-6 py-2 rounded-full bg-blue-600 text-white font-medium shadow-sm transition hover:bg-blue-700">Thứ 2 - Thứ 7</button>
+                    <button id="btn-sunday" class="px-6 py-2 rounded-full bg-white text-slate-600 font-medium border border-slate-300 shadow-sm transition hover:bg-slate-50">Chủ Nhật</button>
+                </div>
+
+                <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                    <!-- Left: Analytics -->
+                    <div class="space-y-6">
+                        <div>
+                            <h3 id="chart-title" class="text-lg font-bold text-slate-800 text-center">Phân bổ 24h: Ngày Thực Chiến</h3>
+                            <p id="chart-desc" class="text-sm text-slate-500 text-center mt-1">Sự thiếu hụt giấc ngủ là rủi ro lớn nhất.</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                        <div id="quick-stats" class="grid grid-cols-2 gap-4 mt-6"></div>
+                    </div>
+                    <!-- Right: Timeline -->
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span>📅</span> Chi tiết lịch trình
+                        </h3>
+                        <div id="timeline-container" class="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Task Tracker & Roadmap -->
+        <section id="roadmap" class="scroll-mt-20">
+            <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>🚀</span> Lộ trình: 2-3 Bài Code Mỗi Ngày
+                    </h2>
+                    <p class="text-slate-600 mt-2">Duy trì thói quen nhỏ mỗi ngày. Dữ liệu tiến độ tự động lưu trên trình duyệt.</p>
+                </div>
+                <button id="reset-progress" class="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100 transition text-sm font-medium">
+                    Reset Tiến Độ
+                </button>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="flex border-b border-slate-200 overflow-x-auto bg-slate-50">
+                    <button class="roadmap-tab tab-active px-6 py-4 text-sm font-medium whitespace-nowrap" data-target="phase1">Tuần 1 - 2: Đệ Quy</button>
+                    <button class="roadmap-tab px-6 py-4 text-slate-500 hover:text-slate-700 text-sm font-medium whitespace-nowrap" data-target="phase2">Tuần 3 - 4: Con trỏ & Struct</button>
+                    <button class="roadmap-tab px-6 py-4 text-slate-500 hover:text-slate-700 text-sm font-medium whitespace-nowrap" data-target="phase3">Tuần 5+: Thuật toán</button>
+                </div>
+
+                <div class="p-6">
+                    <!-- Phase 1 (Interactive Tracker - DAILY BREAKDOWN) -->
+                    <div id="phase1" class="roadmap-content space-y-8">
+                        <div class="flex items-start gap-4">
+                            <div class="text-3xl mt-1">💻</div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-slate-800">C++: Phá đảo Đệ Quy (Recursion)</h3>
+                                <p class="text-slate-600 text-sm mt-1 mb-6">Chỉ tiêu: **Mỗi ngày 2-3 bài** trong "Khung giờ vàng". Hệ thống lại từ điểm dừng (Base Case) để tránh Stack Overflow.</p>
+                                
+                                <!-- Daily Grid -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    <!-- Monday -->
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 2 (Làm quen)</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d1-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 1: Tính giai thừa (n!)</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d1-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 2: Tính tổng từ 1 đến n</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d1-3" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 3: Tính x lũy thừa y</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <!-- Tuesday -->
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 3 (Dãy số)</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d2-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 1: In chuỗi Fibonacci thứ n</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d2-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 2: Đếm số chữ số của số nguyên n</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <!-- Wednesday -->
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 4 (Chuỗi & Mảng)</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d3-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 1: Tìm Ước chung lớn nhất (UCLN)</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d3-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 2: In đảo ngược một mảng</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d3-3" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 3: Đảo ngược một chuỗi text</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <!-- Thursday -->
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 5 (Đối xứng)</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d4-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 1: Kiểm tra mảng có đối xứng không</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d4-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 2: Kiểm tra chuỗi Palindrome</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <!-- Friday -->
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 6 (Cơ số)</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d5-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 1: Hệ thập phân (10) sang Nhị phân (2)</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d5-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 2: Hệ thập phân (10) sang Bát phân (8)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <!-- Saturday -->
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 7 (Duyệt Mảng Sâu)</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d6-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 1: Tìm phần tử Max/Min trong mảng</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d6-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 2: Tính tổng các phần tử chẵn</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d6-3" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-blue-600 transition">Bài 3: Đếm số lần xuất hiện của x</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <!-- Sunday -->
+                                    <div class="border border-amber-200 rounded-lg p-4 bg-amber-50 shadow-sm md:col-span-2 xl:col-span-3">
+                                        <h5 class="font-bold text-amber-800 mb-3 border-b border-amber-200 pb-2 flex items-center gap-2">
+                                            <span>⭐</span> Chủ Nhật (Nâng cao tư duy)
+                                        </h5>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d7-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-amber-700 transition">Bài 1: Giải thuật Tháp Hà Nội (Tower of Hanoi)</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w1-d7-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text group-hover:text-amber-700 transition">Bài 2: Sinh các hoán vị của một chuỗi</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-6 bg-rose-50 text-rose-900 p-4 rounded-lg border border-rose-200 text-sm shadow-sm">
+                                    <span class="font-bold text-rose-700 flex items-center gap-1"><span>⚠️</span> Chú ý (Dễ bị hỏi thi):</span>
+                                    <ul class="list-disc pl-5 mt-2 space-y-1">
+                                        <li><strong>Base Case (Điều kiện dừng):</strong> Điểm kết thúc đệ quy. Không có sẽ bị lỗi lặp vô hạn.</li>
+                                        <li><strong>Call Stack (Ngăn xếp):</strong> Cách RAM ghi nhớ thứ tự thực thi hàm. <strong>Stack Overflow</strong> xảy ra khi Call Stack đầy.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="border-slate-100">
+                        
+                        <!-- IT Concept -->
+                        <div class="flex items-start gap-4">
+                            <div class="text-3xl mt-1">🌐</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Kiến thức IT Tuần 1-2: Khái niệm API</h3>
+                                <p class="text-sm text-slate-600 mb-2">Application Programming Interface (Giao diện lập trình ứng dụng)</p>
+                                <div class="mt-2 bg-blue-50 text-blue-900 p-4 rounded-lg text-sm border border-blue-100">
+                                    <strong>💡 Liên tưởng thực tế:</strong> API giống như người phục vụ trong nhà hàng. Bạn (Client) xem menu và gọi món. Người phục vụ (API) mang yêu cầu của bạn vào bếp (Server/Database), sau đó bưng món ăn (Dữ liệu) ra cho bạn. Bạn hoàn toàn không cần biết đầu bếp nấu như thế nào.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phase 2 -->
+                    <div id="phase2" class="roadmap-content hidden space-y-8">
+                        <div class="flex items-start gap-4">
+                            <div class="text-3xl mt-1">🧠</div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-slate-800">C++: Con trỏ (Pointers) và Struct</h3>
+                                <p class="text-slate-600 text-sm mt-1 mb-6">Chỉ tiêu: **Mỗi ngày 2-3 bài**. Mục tiêu hiểu cách bộ nhớ RAM hoạt động.</p>
+                                
+                                <!-- Daily Grid Phase 2 -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 2</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d1-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 1: Khai báo con trỏ & in địa chỉ (Memory Address)</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d1-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 2: Thay đổi giá trị biến thông qua con trỏ</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 3</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d2-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 1: Hàm hoán vị (Swap) 2 số dùng con trỏ</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d2-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 2: Duyệt các phần tử mảng bằng con trỏ</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 4</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d3-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 1: Tính tổng mảng bằng con trỏ</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d3-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 2: Cấp phát động mảng (new/delete)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 5</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d4-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 1: Định nghĩa Struct SinhVien (Tên, Mã, Điểm)</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d4-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 2: Viết hàm Nhập/Xuất 1 SinhVien</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 6</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d5-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 1: Quản lý Mảng Struct SinhVien</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d5-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 2: Tìm SinhVien có điểm cao nhất</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 text-blue-600">Thứ 7 & CN</h5>
+                                        <div class="space-y-2">
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d6-1" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 1: Sắp xếp mảng SinhVien theo điểm</span>
+                                            </label>
+                                            <label class="flex items-start gap-2 cursor-pointer group">
+                                                <input type="checkbox" id="w2-d6-2" class="mt-1 w-4 h-4 task-checkbox rounded border-slate-300">
+                                                <span class="text-sm text-slate-800 task-text transition">Bài 2: Con trỏ trỏ tới Struct (Dùng `->`)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <div class="flex items-start gap-4">
+                            <div class="text-3xl mt-1">🖥️</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Kiến thức IT Tuần 3-4: Client - Server</h3>
+                                <div class="mt-2 bg-blue-50 text-blue-900 p-4 rounded-lg text-sm border border-blue-100">
+                                    <strong>💡 Liên tưởng thực tế:</strong> App trên điện thoại của bạn là Client. Nơi lưu trữ dữ liệu tài khoản của công ty đó là Server. App xin dữ liệu, Server xử lý và trả về dữ liệu.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phase 3 -->
+                    <div id="phase3" class="roadmap-content hidden space-y-8">
+                         <div class="flex items-start gap-4">
+                            <div class="text-3xl mt-1">⚙️</div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-slate-800">C++: Thuật toán Cơ bản & STL</h3>
+                                <p class="text-slate-600 text-sm mt-1 mb-4">Các thuật toán nền tảng (Tìm kiếm nhị phân, Sắp xếp nổi bọt...). Tương tự, mỗi ngày bạn sẽ chia nhỏ ra 2-3 bài để luyện tập.</p>
+                                
+                                <div class="bg-white rounded-xl border border-slate-200 p-8 shadow-sm flex items-center justify-center">
+                                    <p class="text-slate-500 italic text-sm">Nội dung chi tiết từng ngày sẽ được mở khóa sau khi hoàn thành Tuần 1-4.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex items-start gap-3">
+                                <div class="text-2xl mt-1">🐞</div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800">Bug & Debugging</h3>
+                                    <p class="text-sm text-slate-600 mt-1">Kỹ năng tìm và diệt lỗi phần mềm. Đây là kỹ năng quan trọng nhất của Dev, không phải gõ code nhanh.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3">
+                                <div class="text-2xl mt-1">🐙</div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800">Git & GitHub</h3>
+                                    <p class="text-sm text-slate-600 mt-1">Giống nút "Save game" xịn sò. Giúp lưu lại từng phiên bản code (Save point) để load lại khi code bị hỏng.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <footer class="text-center text-slate-500 text-sm border-t border-slate-200 pt-6">
+            <p>Dashboard phát triển riêng cho sinh viên IT. Hãy bảo vệ sức khỏe và giấc ngủ!</p>
+        </footer>
+
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- 1. LOCAL STORAGE LOGIC FOR TASKS ---
+        // Đổi key để reset phiên bản cũ, khớp với định dạng hàng ngày mới
+        const STORAGE_KEY = 'it_student_roadmap_tasks_daily_v2';
+        const checkboxes = document.querySelectorAll('.task-checkbox');
+        const btnReset = document.getElementById('reset-progress');
+
+        // Load progress
+        function loadProgress() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                const progress = JSON.parse(savedData);
+                checkboxes.forEach(cb => {
+                    if (progress[cb.id]) {
+                        cb.checked = true;
+                    }
+                });
+            }
+        }
+
+        // Save progress
+        function saveProgress() {
+            const progress = {};
+            checkboxes.forEach(cb => {
+                progress[cb.id] = cb.checked;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', saveProgress);
+        });
+
+        // Reset progress
+        btnReset.addEventListener('click', () => {
+            if(confirm("Bạn có chắc chắn muốn xóa toàn bộ tiến độ bài tập không?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                checkboxes.forEach(cb => { cb.checked = false; });
+            }
+        });
+
+        loadProgress();
+
+        // --- 2. DATA & LOGIC FOR SCHEDULE CHART ---
+        const scheduleData = {
+            weekday: {
+                title: "Phân bổ 24h: Ngày Thực Chiến",
+                desc: "Ngày thường (Thứ 2 - Thứ 7). Chú ý thời gian ngủ ít.",
+                chartData: [5.75, 10, 1.5, 6, 0.75], 
+                stats: [
+                    { label: "Giấc ngủ", val: "5h 45p", color: "text-purple-600" },
+                    { label: "Việc + Học", val: "16h 00p", color: "text-amber-600" }
+                ],
+                timeline: [
+                    { time: "06:00 - 06:30", act: "Khởi động & Thể dục", detail: "Uống nước lọc. 15p hít đất, Squat, giãn cơ.", icon: "🏃" },
+                    { time: "06:30 - 07:00", act: "Vệ sinh & Ăn sáng", detail: "Ưu tiên trứng, bánh mì, phở/bún nạp protein.", icon: "🍳" },
+                    { time: "07:00 - 17:00", act: "Học trên trường", detail: "Tận dụng 1-2 tiếng trống cuối buổi để luyện 2-3 bài C++ theo lịch.", icon: "🏫" },
+                    { time: "17:00 - 17:30", act: "Khung Giờ Vàng / Di chuyển", detail: "Lên chỗ làm sớm nếu trống tiết cuối. Đeo tai nghe code.", icon: "💻" },
+                    { time: "17:30 - 23:30", act: "Làm part-time", detail: "Tập trung làm việc kiếm thu nhập.", icon: "💼" },
+                    { time: "23:30 - 00:15", act: "Về nhà & Vệ sinh", detail: "Tắm nước ấm. KHÔNG mở laptop code lúc này.", icon: "🛀" },
+                    { time: "00:15 - 06:00", act: "Ngủ sâu", detail: "Vào giấc nhanh nhất có thể.", icon: "💤" }
+                ]
+            },
+            sunday: {
+                title: "Phân bổ 24h: Ngày Reset Hệ Thống",
+                desc: "Ngày Chủ Nhật. Trả nợ giấc ngủ và học sâu tư duy.",
+                chartData: [7.5, 0, 2.25, 9.5, 4.75],
+                stats: [
+                    { label: "Giấc ngủ", val: "7h 30p", color: "text-purple-600" },
+                    { label: "Làm part-time", val: "9h 30p", color: "text-amber-600" }
+                ],
+                timeline: [
+                    { time: "06:30 - 07:15", act: "Thức dậy & Vệ sinh", detail: "Dậy trễ hơn một chút để phục hồi cơ thể.", icon: "🌅" },
+                    { time: "07:15 - 08:00", act: "Khung Giờ Vàng (Sáng)", detail: "Lên chỗ làm sớm. Ôn lại API, Git, Bug đã học.", icon: "⭐" },
+                    { time: "08:00 - 17:30", act: "Làm part-time", detail: "Nhớ chợp mắt Power Nap 15p vào giờ nghỉ trưa.", icon: "💼" },
+                    { time: "17:30 - 19:30", act: "Về nhà & Nghỉ ngơi", detail: "Tắm rửa, ăn tối ngon miệng, thư giãn đầu óc.", icon: "🍲" },
+                    { time: "19:30 - 21:00", act: "Khung Giờ Vàng (Tối)", detail: "Giải Bài tập C++ Thử Thách Chủ Nhật.", icon: "🧠" },
+                    { time: "21:00 - 22:30", act: "Giải trí tự do", detail: "Xem phim, chuẩn bị đồ cho Thứ 2 tuần sau.", icon: "🎮" },
+                    { time: "22:30 - 06:30", act: "Ngủ bù", detail: "Sạc đầy năng lượng cho cả tuần mới.", icon: "💤" }
+                ]
+            }
+        };
+
+        let myChart = null;
+        const btnWeekday = document.getElementById('btn-weekday');
+        const btnSunday = document.getElementById('btn-sunday');
+        const ctx = document.getElementById('timeChart').getContext('2d');
+
+        function initChart() {
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ngủ', 'Học Trường', 'Code C++', 'Làm thêm', 'Cá nhân/Di chuyển'],
+                    datasets: [{
+                        data: scheduleData.weekday.chartData,
+                        backgroundColor: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#cbd5e1'],
+                        borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: "'Inter', sans-serif" }, usePointStyle: true, padding: 15 } }
+                    }
+                }
+            });
+        }
+
+        function updateUI(day) {
+            const data = scheduleData[day];
+            document.getElementById('chart-title').textContent = data.title;
+            document.getElementById('chart-desc').textContent = data.desc;
+
+            document.getElementById('quick-stats').innerHTML = data.stats.map(s => `
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 text-center shadow-sm">
+                    <div class="text-xs text-slate-500 mb-1 uppercase tracking-wider font-semibold">${s.label}</div>
+                    <div class="text-xl font-bold ${s.color}">${s.val}</div>
+                </div>
+            `).join('');
+
+            myChart.data.datasets[0].data = data.chartData;
+            myChart.update();
+
+            document.getElementById('timeline-container').innerHTML = data.timeline.map((item, index) => `
+                <div class="relative pl-6 sm:pl-8 opacity-0 translate-y-4" style="animation: fadeIn 0.4s ease forwards ${index * 0.1}s;">
+                    <div class="timeline-dot"></div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-lg">${item.icon}</span><span class="text-sm font-bold text-blue-600">${item.time}</span>
+                        </div>
+                        <h4 class="font-semibold text-slate-800">${item.act}</h4>
+                        <p class="text-sm text-slate-600 mt-1">${item.detail}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            if(day === 'weekday') {
+                btnWeekday.className = "px-6 py-2 rounded-full bg-blue-600 text-white font-medium shadow-md transition hover:bg-blue-700";
+                btnSunday.className = "px-6 py-2 rounded-full bg-white text-slate-600 font-medium border border-slate-300 shadow-sm transition hover:bg-slate-50";
+            } else {
+                btnSunday.className = "px-6 py-2 rounded-full bg-blue-600 text-white font-medium shadow-md transition hover:bg-blue-700";
+                btnWeekday.className = "px-6 py-2 rounded-full bg-white text-slate-600 font-medium border border-slate-300 shadow-sm transition hover:bg-slate-50";
+            }
+        }
+
+        btnWeekday.addEventListener('click', () => updateUI('weekday'));
+        btnSunday.addEventListener('click', () => updateUI('sunday'));
+
+        // --- 3. ROADMAP TABS LOGIC ---
+        const tabs = document.querySelectorAll('.roadmap-tab');
+        const contents = document.querySelectorAll('.roadmap-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => { t.classList.remove('tab-active', 'text-blue-600'); t.classList.add('text-slate-500'); });
+                contents.forEach(c => c.classList.add('hidden'));
+                
+                tab.classList.remove('text-slate-500'); tab.classList.add('tab-active');
+                document.getElementById(tab.getAttribute('data-target')).classList.remove('hidden');
+            });
+        });
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }`;
+        document.head.appendChild(style);
+
+        // Init
+        initChart();
+        updateUI('weekday');
+    </script>
+</body>
+</html>
